@@ -3,6 +3,10 @@ import styled from "styled-components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { uniq } from "lodash/array";
+import Dropdown from 'react-dropdown';
+import 'react-dropdown/style.css';
+import uuid from "react-uuid";
+import { debounce } from "lodash/function";
 
 const Container = styled.div`
   display: flex;
@@ -35,7 +39,8 @@ const Row = styled.div`
   width: 100%;
   gap: 1rem;
   justify-content: start;
-  align-items: center;
+  align-items: start;
+  flex-wrap: wrap;
 `
 
 const Column = styled.div`
@@ -49,8 +54,12 @@ const CheckerColumn = styled(Column)`
   width: 200px;
 `
 
-const ExperimentsColumn = styled(Column)`
-  overflow: auto;
+const ExperimentsRow = styled(Column)`
+  position: absolute;
+  top: 80px;
+  left: 280px;
+  overflow: hidden;
+  max-width: 1600px;
 `
 
 const ExperimentGif = styled.img`
@@ -100,11 +109,11 @@ const loadCsv = (setSimRows, setRepRows) => {
 
 const Experiment = ({ experimentId, eta }) => {
   const title = eta === null ? 'Vanilla' : `η=${ eta }`;
-  return <Column>
+  return <div style={ { display: "flex", flexDirection: "column", alignItems: "center" } }>
     <ExperimentGif src={ `figures/${ experimentId }.gif` } alt={ experimentId }
                    title={ title }/>
     <div>{ title }</div>
-  </Column>;
+  </div>;
 }
 
 const CheckboxRow = styled.div`
@@ -132,9 +141,23 @@ const Button = styled.div`
 `
 
 const EtaCheckbox = ({ eta, checked, onCheck }) => <CheckboxRow>
-  <Checkbox type="checkbox" checked={checked} onChange={ onCheck } disabled={eta === null}/>
+  <Checkbox type="checkbox" checked={ checked } onChange={ onCheck } disabled={ eta === null }/>
   <div>{ eta || 'Vanilla' }</div>
 </CheckboxRow>
+
+const StyledDropdown = styled(Dropdown)`
+  margin-top: 8px;
+  margin-bottom: 32px;
+`
+
+const SIMILARITIES = 'Similarities'
+const REPULSIVE = 'Repulsive'
+
+const LIMIT = 8
+
+const showAlert = (message) => {
+  alert(message)
+}
 
 const App = () => {
 
@@ -142,25 +165,25 @@ const App = () => {
   const [repRows, setRepRows] = useState([])
   const [etas, setEtas] = useState([])
   const [selectedEtas, setSelectedEtas] = useState([])
+  const [mode, setMode] = useState(SIMILARITIES)
 
   const filterRows = useCallback((rows) => {
     if ( selectedEtas === undefined ) {
       return rows
     }
-    return rows.filter(data => data.eta === null || selectedEtas.includes(data.eta))
+    return rows.filter(data => data.eta === null || selectedEtas.includes(data.eta)).slice(0, LIMIT)
   }, [selectedEtas])
 
-  const simularities = useMemo(() => filterRows(simRows), [filterRows, simRows])
+  const similarities = useMemo(() => filterRows(simRows), [filterRows, simRows])
 
-  const repulsives = useMemo(() => filterRows(repRows), [filterRows, repRows])
+  const repulsive = useMemo(() => filterRows(repRows), [filterRows, repRows])
 
   useEffect(() => loadCsv(setSimRows, setRepRows), [])
-
 
   useEffect(() => {
     const allEtas = uniq(simRows.map(data => data.eta));
     setEtas(allEtas)
-    setSelectedEtas(allEtas)
+    setSelectedEtas(allEtas.slice(0, LIMIT))
   }, [simRows])
 
   return (
@@ -168,34 +191,39 @@ const App = () => {
       <Title color='#228a8d' width={ 160 }>Polarization</Title>
       <Row>
         <CheckerColumn>
+          <div>Experiments set:</div>
+          <StyledDropdown options={ [SIMILARITIES, REPULSIVE] } onChange={ option => setMode(option.value) }
+                          value={ mode } placeholder="Select an option"/>
           <Markered width={ 200 } color="#440356">Choose η values</Markered>
           <CheckboxRow>
-            <Button title="All" onClick={() => setSelectedEtas(etas)}>All</Button>
-            <Button title="None" onClick={() => setSelectedEtas([null])}>None</Button>
+            <Button title={ `First ${ LIMIT } options` }
+                    onClick={ () => setSelectedEtas(etas.slice(0, LIMIT)) }>Basic</Button>
+            <Button title="None" onClick={ () => setSelectedEtas([null]) }>None</Button>
           </CheckboxRow>
           {
             etas.map(eta => <EtaCheckbox key={ eta } eta={ eta } checked={ selectedEtas.includes(eta) } onCheck={
-              () => setSelectedEtas(curr =>
-                curr.includes(eta) ? curr.filter(e => e !== eta) : [...curr, eta]
+              () => setSelectedEtas(curr => {
+                  const next = curr.includes(eta) ? curr.filter(e => e !== eta) : [...curr, eta]
+                  if ( next.length > LIMIT ) {
+                    showAlert(`Sorry, selection is limited to ${ LIMIT } values`)
+                    return curr
+                  }
+                  return next
+                }
               )
             }/>)
           }
         </CheckerColumn>
         <VerticalDivider/>
-        <ExperimentsColumn>
+        <ExperimentsRow>
           <Row>
-            <Markered width={ 160 } color='#375a8c'>SIMILARITY</Markered>
             {
-              simularities.map(row => <Experiment key={ row.experimentId } { ...row }/>)
+              mode === SIMILARITIES
+                ? similarities.map(row => <Experiment key={ uuid() } { ...row }/>)
+                : repulsive.map(row => <Experiment key={ uuid() } { ...row }/>)
             }
           </Row>
-          <Row>
-            <Markered width={ 160 } color='#37b877'>REPULSIVE</Markered>
-            {
-              repulsives.map(row => <Experiment key={ row.experimentId } { ...row }/>)
-            }
-          </Row>
-        </ExperimentsColumn>
+        </ExperimentsRow>
       </Row>
     </Container>
   );
