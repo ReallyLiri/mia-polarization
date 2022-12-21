@@ -6,12 +6,12 @@ import { uniq } from "lodash/array";
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import uuid from "react-uuid";
-import { debounce } from "lodash/function";
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 98vh;
   border: 10px solid #228a8d;
   box-sizing: border-box;
   overflow: hidden;
@@ -58,8 +58,10 @@ const ExperimentsRow = styled(Column)`
   position: absolute;
   top: 80px;
   left: 280px;
-  overflow: hidden;
-  max-width: 1600px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 1400px;
+  height: 800px;
 `
 
 const ExperimentGif = styled.img`
@@ -73,6 +75,15 @@ const VerticalDivider = styled.div`
   height: 800px;
   background-color: #440356;
   margin-right: 1rem;
+`
+
+const Arrow = styled.span`
+  font-size: 32px;
+  font-weight: bold;
+  color: #1f988b;
+  justify-self: center;
+  align-self: center;
+  z-index: 1;
 `
 
 const sortExperiments = (data) => data.sort((a, b) => a.eta - b.eta)
@@ -109,11 +120,16 @@ const loadCsv = (setSimRows, setRepRows) => {
 
 const Experiment = ({ experimentId, eta }) => {
   const title = eta === null ? 'Vanilla' : `η=${ eta }`;
-  return <div style={ { display: "flex", flexDirection: "column", alignItems: "center" } }>
-    <ExperimentGif src={ `figures/${ experimentId }.gif` } alt={ experimentId }
-                   title={ title }/>
-    <div>{ title }</div>
-  </div>;
+  return <>
+    {
+      eta !== null && <Arrow>→</Arrow>
+    }
+    <div style={ { display: "flex", flexDirection: "column", alignItems: "center" } }>
+      <ExperimentGif src={ `figures/${ experimentId }.gif` } alt={ experimentId }
+                     title={ title }/>
+      <div>{ title }</div>
+    </div>
+  </>;
 }
 
 const CheckboxRow = styled.div`
