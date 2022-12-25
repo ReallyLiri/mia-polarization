@@ -1,16 +1,18 @@
 import "./index.css"
 import styled from "styled-components";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
 import { uniq } from "lodash/array";
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import uuid from "react-uuid";
+import { last } from "lodash";
+import { useRect } from "react-use-rect";
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: ${ ({ width }) => width ? `${ width }px` : '100%' };
   height: 98vh;
   border: 10px solid #228a8d;
   box-sizing: border-box;
@@ -54,7 +56,7 @@ const CheckerColumn = styled(Column)`
   width: 200px;
 `
 
-const ExperimentsRow = styled(Column)`
+const ExperimentsContainer = styled(Column)`
   position: absolute;
   top: 80px;
   left: 280px;
@@ -118,17 +120,17 @@ const loadCsv = (setSimRows, setRepRows) => {
     })
 }
 
-const Experiment = ({ experimentId, eta }) => {
+const Experiment = ({ experimentId, eta, visible, isLast }) => {
   const title = eta === null ? 'Vanilla' : `η=${ eta }`;
-  return <>
-    {
-      eta !== null && <Arrow>→</Arrow>
-    }
+  return visible && <>
     <div style={ { display: "flex", flexDirection: "column", alignItems: "center" } }>
       <ExperimentGif src={ `figures/${ experimentId }.gif` } alt={ experimentId }
                      title={ title }/>
       <div>{ title }</div>
     </div>
+    {
+      !isLast && <Arrow>→</Arrow>
+    }
   </>;
 }
 
@@ -166,10 +168,10 @@ const StyledDropdown = styled(Dropdown)`
   margin-bottom: 32px;
 `
 
-const SIMILARITIES = 'Similarities'
+const SIMILARITY = 'Similarity'
 const REPULSIVE = 'Repulsive'
 
-const LIMIT = 8
+const LIMIT = 6
 
 const showAlert = (message) => {
   alert(message)
@@ -180,66 +182,88 @@ const App = () => {
   const [simRows, setSimRows] = useState([])
   const [repRows, setRepRows] = useState([])
   const [etas, setEtas] = useState([])
-  const [selectedEtas, setSelectedEtas] = useState([])
-  const [mode, setMode] = useState(SIMILARITIES)
-
-  const filterRows = useCallback((rows) => {
-    if ( selectedEtas === undefined ) {
-      return rows
+  const [mode, setMode] = useState(SIMILARITY)
+  const [width, setWidth] = useState()
+  const ref = useRef()
+  const [setRef] = useRect((rect) => {
+    if ( ref.current ) {
+      setWidth(ref.current.scrollWidth + 280)
     }
-    return rows.filter(data => data.eta === null || selectedEtas.includes(data.eta)).slice(0, LIMIT)
+  }, { resize: true })
+
+  const urlSearchParams = new URLSearchParams(window.location.search);
+  const selectedEtas = ( Object.fromEntries(urlSearchParams.entries())['etas']?.split(',') || [] ).map(e => e.toString()).filter(e => e);
+  console.error(selectedEtas)
+
+  useEffect(() => {
+    if ( ref.current ) {
+      setRef(ref.current)
+    }
+  }, [setRef])
+
+  const isVisible = useCallback((eta) => {
+    return eta === null || selectedEtas.includes(eta.toString())
   }, [selectedEtas])
 
-  const similarities = useMemo(() => filterRows(simRows), [filterRows, simRows])
-
-  const repulsive = useMemo(() => filterRows(repRows), [filterRows, repRows])
-
   useEffect(() => loadCsv(setSimRows, setRepRows), [])
+
+  const setSelectedEtas = (selected) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('etas', selected.filter(e => e).join(','));
+    console.error(window.location.href, url, url.toString())
+    if ( url.toString() !== window.location.href ) {
+      window.location.assign(url);
+    }
+  }
 
   useEffect(() => {
     const allEtas = uniq(simRows.map(data => data.eta));
     setEtas(allEtas)
-    setSelectedEtas(allEtas.slice(0, LIMIT))
-  }, [simRows])
+    if ( selectedEtas.length === 0 ) {
+      setSelectedEtas(allEtas.slice(0, LIMIT))
+    }
+  }, [selectedEtas.length, simRows])
 
   return (
-    <Container>
+    <Container width={ width }>
       <Title color='#228a8d' width={ 160 }>Polarization</Title>
       <Row>
         <CheckerColumn>
           <div>Experiments set:</div>
-          <StyledDropdown options={ [SIMILARITIES, REPULSIVE] } onChange={ option => setMode(option.value) }
+          <StyledDropdown options={ [SIMILARITY, REPULSIVE] } onChange={ option => setMode(option.value) }
                           value={ mode } placeholder="Select an option"/>
           <Markered width={ 200 } color="#440356">Choose η values</Markered>
           <CheckboxRow>
             <Button title={ `First ${ LIMIT } options` }
-                    onClick={ () => setSelectedEtas(etas.slice(0, LIMIT)) }>Basic</Button>
-            <Button title="None" onClick={ () => setSelectedEtas([null]) }>None</Button>
+                    onClick={ () => setSelectedEtas(etas.slice(0, LIMIT)) }>Default</Button>
+            <Button title="None" onClick={ () => setSelectedEtas([]) }>None</Button>
           </CheckboxRow>
           {
-            etas.map(eta => <EtaCheckbox key={ eta } eta={ eta } checked={ selectedEtas.includes(eta) } onCheck={
-              () => setSelectedEtas(curr => {
-                  const next = curr.includes(eta) ? curr.filter(e => e !== eta) : [...curr, eta]
-                  if ( next.length > LIMIT ) {
-                    showAlert(`Sorry, selection is limited to ${ LIMIT } values`)
-                    return curr
-                  }
-                  return next
+            etas.map(eta => <EtaCheckbox key={ eta } eta={ eta }
+                                         checked={ eta === null || selectedEtas.includes(eta?.toString()) } onCheck={
+              () => {
+                const next = selectedEtas.includes(eta.toString()) ? selectedEtas.filter(e => e !== eta.toString()) : [...selectedEtas, eta.toString()]
+                if ( next.length > LIMIT - 1 ) {
+                  showAlert(`Sorry, selection is limited to ${ LIMIT } values`)
+                } else {
+                  setSelectedEtas(next)
                 }
-              )
+              }
             }/>)
           }
         </CheckerColumn>
         <VerticalDivider/>
-        <ExperimentsRow>
+        <ExperimentsContainer ref={ ref }>
           <Row>
             {
-              mode === SIMILARITIES
-                ? similarities.map(row => <Experiment key={ uuid() } { ...row }/>)
-                : repulsive.map(row => <Experiment key={ uuid() } { ...row }/>)
+              mode === SIMILARITY
+                ? simRows.map(row => <Experiment key={ uuid() } visible={ isVisible(row.eta) }
+                                                 isLast={ row.eta?.toString() === last(selectedEtas) } { ...row }/>)
+                : repRows.map(row => <Experiment key={ uuid() } visible={ isVisible(row.eta) }
+                                                 isLast={ row.eta?.toString() === last(selectedEtas) } { ...row }/>)
             }
           </Row>
-        </ExperimentsRow>
+        </ExperimentsContainer>
       </Row>
     </Container>
   );

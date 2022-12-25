@@ -7224,6 +7224,11 @@ react-scripts@5.0.1:
   optionalDependencies:
     fsevents "^2.3.2"
 
+react-use-rect@^2.0.4:
+  version "2.0.4"
+  resolved "https://registry.yarnpkg.com/react-use-rect/-/react-use-rect-2.0.4.tgz#e35a327555950504ae330a984ac6883bd4fb1dac"
+  integrity sha512-U0MyT5le01P83t/G37t+Z36lafKEl5icCM1M9V4ubt5+kgczllyd5xWNH4Ahxn+CzMs6mnTypZ+XwpFbE045XA==
+
 react-uuid@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/react-uuid/-/react-uuid-2.0.0.tgz#e3c97e190db9eef53cb9dacfcc7314d913a411fa"
