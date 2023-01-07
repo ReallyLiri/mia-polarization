@@ -1,12 +1,12 @@
 import "./index.css"
 import styled from "styled-components";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import { uniq } from "lodash/array";
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import uuid from "react-uuid";
-import { last, toNumber } from "lodash";
+import { isEmpty, last, toNumber } from "lodash";
 import { useRect } from "react-use-rect";
 
 const Container = styled.div`
@@ -191,7 +191,7 @@ const App = () => {
     }
   }, { resize: true })
 
-  const urlSearchParams = new URLSearchParams(window.location.search);
+  const urlSearchParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const selectedEtas = ( Object.fromEntries(urlSearchParams.entries())['etas']?.split(',') || [] )
     .map(e => e.toString())
     .filter(e => e)
@@ -218,12 +218,15 @@ const App = () => {
   }
 
   useEffect(() => {
+    if (isEmpty(simRows)) {
+      return
+    }
     const allEtas = uniq(simRows.map(data => data.eta));
     setEtas(allEtas)
-    if ( selectedEtas.length === 0 ) {
+    if ( selectedEtas.length === 0 && !urlSearchParams.has("etas") ) {
       setSelectedEtas(allEtas.slice(0, LIMIT))
     }
-  }, [selectedEtas.length, simRows])
+  }, [selectedEtas.length, simRows, urlSearchParams])
 
   return (
     <Container width={ width }>
