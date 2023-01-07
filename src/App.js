@@ -6,7 +6,7 @@ import { uniq } from "lodash/array";
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import uuid from "react-uuid";
-import { last } from "lodash";
+import { last, toNumber } from "lodash";
 import { useRect } from "react-use-rect";
 
 const Container = styled.div`
@@ -192,8 +192,10 @@ const App = () => {
   }, { resize: true })
 
   const urlSearchParams = new URLSearchParams(window.location.search);
-  const selectedEtas = ( Object.fromEntries(urlSearchParams.entries())['etas']?.split(',') || [] ).map(e => e.toString()).filter(e => e);
-  console.error(selectedEtas)
+  const selectedEtas = ( Object.fromEntries(urlSearchParams.entries())['etas']?.split(',') || [] )
+    .map(e => e.toString())
+    .filter(e => e)
+    .sort((a,b) => toNumber(a) - toNumber(b));
 
   useEffect(() => {
     if ( ref.current ) {
@@ -210,7 +212,6 @@ const App = () => {
   const setSelectedEtas = (selected) => {
     const url = new URL(window.location.href);
     url.searchParams.set('etas', selected.filter(e => e).join(','));
-    console.error(window.location.href, url, url.toString())
     if ( url.toString() !== window.location.href ) {
       window.location.assign(url);
     }
