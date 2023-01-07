@@ -224,7 +224,8 @@ const App = () => {
     const allEtas = uniq(simRows.map(data => data.eta));
     setEtas(allEtas)
     if ( selectedEtas.length === 0 && !urlSearchParams.has("etas") ) {
-      setSelectedEtas(allEtas.slice(0, LIMIT))
+      const defaultSetup = [allEtas[0], allEtas[1], allEtas[6], allEtas[11], allEtas[16], allEtas[18]]
+      setSelectedEtas(defaultSetup)
     }
   }, [selectedEtas.length, simRows, urlSearchParams])
 
